@@ -1,5 +1,7 @@
 node_modules/
 .env
+*.pem
+.vercel
 npm-debug.log*
 coverage/
 .DS_Store

@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/env');
-const { registerValidation, loginValidation, updateProfileValidation } = require('../validators/authValidator');
+const { registerValidation, loginValidation, updateProfileValidation, fotoPerfilValidation } = require('../validators/authValidator');
 const handleValidation = require('../validators/validationResult');
 const userRepository = require('../repositories/userRepository');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -87,5 +87,22 @@ router.put('/me', authMiddleware, updateProfileValidation, handleValidation, asy
     next(error);
   }
 });
+
+const salvarFotoPerfil = (obterFoto) => async (req, res, next) => {
+  try {
+    const user = await userRepository.updateFotoPerfil(req.user.id, obterFoto(req));
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+    }
+
+    return res.json({ success: true, user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+router.put('/me/foto', authMiddleware, fotoPerfilValidation, handleValidation, salvarFotoPerfil((req) => req.body.foto_perfil));
+
+router.delete('/me/foto', authMiddleware, salvarFotoPerfil(() => null));
 
 module.exports = router;

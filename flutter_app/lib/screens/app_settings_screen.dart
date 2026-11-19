@@ -170,7 +170,7 @@ class AppSettingsScreen extends StatelessWidget {
                       ListTile(
                         leading: const Icon(Icons.person_outline_rounded),
                         title: const Text('Minha conta'),
-                        subtitle: const Text('Nome, e-mail e telefone'),
+                        subtitle: const Text('Foto, nome, e-mail e telefone'),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(

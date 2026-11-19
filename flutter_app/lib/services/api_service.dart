@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -99,6 +100,47 @@ class ApiService {
         errors is List && errors.isNotEmpty
             ? (errors.first as Map<String, dynamic>)['message']
             : data['message'] ?? 'Não foi possível salvar a conta.',
+      );
+    }
+    return data['user'] as Map<String, dynamic>;
+  }
+
+  static Future<Map<String, dynamic>> updateProfilePhoto(Uint8List png) async {
+    final token = await readToken();
+    final response = await http
+        .put(
+          Uri.parse('$baseUrl/api/auth/me/foto'),
+          headers: authHeaders(token: token),
+          body: jsonEncode({
+            'foto_perfil': 'data:image/png;base64,${base64Encode(png)}',
+          }),
+        )
+        .timeout(AppConfig.requestTimeout);
+    return _userFrom(response, 'Não foi possível salvar a foto.');
+  }
+
+  static Future<Map<String, dynamic>> deleteProfilePhoto() async {
+    final token = await readToken();
+    final response = await http
+        .delete(
+          Uri.parse('$baseUrl/api/auth/me/foto'),
+          headers: authHeaders(token: token),
+        )
+        .timeout(AppConfig.requestTimeout);
+    return _userFrom(response, 'Não foi possível remover a foto.');
+  }
+
+  static Map<String, dynamic> _userFrom(
+    http.Response response,
+    String fallback,
+  ) {
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode != 200 || data['success'] != true) {
+      final errors = data['errors'];
+      throw Exception(
+        errors is List && errors.isNotEmpty
+            ? (errors.first as Map<String, dynamic>)['message']
+            : data['message'] ?? fallback,
       );
     }
     return data['user'] as Map<String, dynamic>;

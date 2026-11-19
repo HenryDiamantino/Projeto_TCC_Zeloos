@@ -41,6 +41,12 @@ Opcionalmente, carregue dados de demonstração:
 mysql -u seu_usuario -p < database/seed.sql
 ```
 
+Se o banco foi criado antes da foto de perfil existir, adicione a coluna `foto_perfil` com:
+
+```bash
+mysql -u seu_usuario -p < database/migrations/001_foto_perfil_usuario.sql
+```
+
 O driver `mysql2` não oferece suporte ao plugin de autenticação `auth_gssapi_client`. Se a API retornar `AUTH_SWITCH_PLUGIN_ERROR`, configure uma conta exclusiva para o aplicativo com um plugin compatível, como `caching_sha2_password` no MySQL 8, e atualize `DB_USER` e `DB_PASSWORD` no `.env`:
 
 ```sql
@@ -68,6 +74,8 @@ O endpoint `GET /api/health` verifica também a conexão com o banco; responde `
 - POST /api/auth/register
 - POST /api/auth/login
 - GET /api/auth/me
+- PUT /api/auth/me/foto
+- DELETE /api/auth/me/foto
 - GET /api/criancas
 - POST /api/criancas
 - GET /api/criancas/:id
@@ -81,6 +89,17 @@ O endpoint `GET /api/health` verifica também a conexão com o banco; responde `
 - GET /api/alertas
 - PATCH /api/alertas/:id/visualizar
 - PATCH /api/alertas/:id/resolver
+
+## Foto de perfil
+A foto do responsável fica na coluna `usuarios.foto_perfil` como Data URL base64 e é devolvida em `GET /api/auth/me`. Para enviar, use `PUT /api/auth/me/foto` com uma imagem PNG, JPEG ou WEBP de até 512 KB:
+
+```json
+{
+  "foto_perfil": "data:image/png;base64,iVBORw0KGgo..."
+}
+```
+
+A API confere o tipo real do arquivo pelos primeiros bytes, e não só pelo prefixo. `DELETE /api/auth/me/foto` remove a foto e o app volta a mostrar a inicial do nome.
 
 ## Localização da pulseira
 O app atualiza a tela do mapa a cada 15 segundos e mostra a última localização recebida pela API. O dispositivo deve enviar posições reais para `POST /api/pulseiras/receber-localizacao`, usando o identificador cadastrado:
@@ -96,6 +115,23 @@ O app atualiza a tela do mapa a cada 15 segundos e mostra a última localizaçã
 
 Sem um dispositivo enviando coordenadas, o mapa informa que ainda não recebeu localização; ele não simula movimento.
 O mapa usa tiles do OpenStreetMap durante o desenvolvimento. Para uso em produção, configure um provedor de tiles que atenda aos termos e limites de uso do serviço escolhido.
+
+## Banco na nuvem com SSL (Aiven)
+Bancos como o da Aiven exigem conexão SSL. Baixe o **CA certificate** do serviço e informe o certificado à API de uma destas formas:
+
+- Localmente: salve como `ca.pem` na pasta `backend` e defina `DB_SSL_CA_FILE=ca.pem` no `.env`.
+- Na Vercel: cole o conteúdo inteiro do `ca.pem` na variável `DB_SSL_CA`.
+
+Sem nenhuma das duas, a conexão é feita sem SSL, como no MySQL/MariaDB local. O `*.pem` está no `.gitignore`.
+
+## Deploy na Vercel
+O arquivo `api/index.js` expõe o app Express como função serverless, e o `vercel.json` encaminha todas as rotas para ela.
+
+1. Na Vercel, importe o repositório e defina **Root Directory** como `backend`.
+2. Em **Settings > Environment Variables**, configure `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL_CA`, `JWT_SECRET` (um segredo novo e forte) e `CORS_ORIGIN` (o endereço do app web, por exemplo `https://zeloos.vercel.app`).
+3. Faça o deploy e teste `https://<seu-backend>.vercel.app/api/health`.
+
+Na Vercel, `NODE_ENV` é `production`, então o CORS só aceita as origens listadas em `CORS_ORIGIN`.
 
 ## Documentação da API (Swagger)
 Com a API rodando, acesse:

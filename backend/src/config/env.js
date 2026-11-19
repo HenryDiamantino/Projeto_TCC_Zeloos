@@ -7,6 +7,8 @@ module.exports = {
   DB_USER: process.env.DB_USER || 'root',
   DB_PASSWORD: process.env.DB_PASSWORD || 'senai2026',
   DB_NAME: process.env.DB_NAME || 'pulseira_localizadora',
+  DB_SSL_CA: process.env.DB_SSL_CA,
+  DB_SSL_CA_FILE: process.env.DB_SSL_CA_FILE,
   JWT_SECRET: process.env.JWT_SECRET || 'tcc-secret-default-change-me',
   CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
   DEMO_MODE: process.env.DEMO_MODE === 'true',

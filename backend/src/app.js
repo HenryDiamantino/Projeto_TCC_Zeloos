@@ -10,6 +10,8 @@ const swaggerSpec = require('./docs/swagger');
 
 const app = express();
 
+if (process.env.VERCEL) app.set('trust proxy', 1);
+
 app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customSiteTitle: 'ZELOOS API - Documentação',

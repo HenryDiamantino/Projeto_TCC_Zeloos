@@ -94,6 +94,12 @@ const swaggerSpec = {
           nome: { type: 'string', example: 'Responsável Demo' },
           email: { type: 'string', format: 'email', example: 'responsavel@demo.com' },
           telefone: { type: 'string', nullable: true, example: '(11) 98765-4321' },
+          foto_perfil: {
+            type: 'string',
+            nullable: true,
+            description: 'Foto de perfil em Data URL base64 (retornada em /api/auth/me).',
+            example: null,
+          },
           ativo: { type: 'boolean', example: true },
         },
       },
@@ -121,6 +127,17 @@ const swaggerSpec = {
         properties: {
           nome: { type: 'string', minLength: 2, example: 'Novo Nome' },
           telefone: { type: 'string', nullable: true, example: '(11) 98765-4321' },
+        },
+      },
+      FotoPerfilRequest: {
+        type: 'object',
+        required: ['foto_perfil'],
+        properties: {
+          foto_perfil: {
+            type: 'string',
+            description: 'Imagem PNG, JPEG ou WEBP em Data URL base64, com no máximo 512 KB.',
+            example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+          },
         },
       },
       AuthResponse: {
@@ -331,6 +348,28 @@ const swaggerSpec = {
         responses: {
           200: { description: 'Perfil atualizado', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, user: ref('Usuario') } } } } },
           400: responses[400],
+          401: responses[401],
+          404: responses[404],
+        },
+      },
+    },
+    '/api/auth/me/foto': {
+      put: {
+        tags: ['Auth'],
+        summary: 'Define a foto de perfil do usuário logado',
+        requestBody: jsonBody('FotoPerfilRequest'),
+        responses: {
+          200: { description: 'Foto salva', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, user: ref('Usuario') } } } } },
+          400: errorResponse('Arquivo não é uma imagem PNG, JPEG ou WEBP de até 512 KB'),
+          401: responses[401],
+          404: responses[404],
+        },
+      },
+      delete: {
+        tags: ['Auth'],
+        summary: 'Remove a foto de perfil do usuário logado',
+        responses: {
+          200: { description: 'Foto removida', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, user: ref('Usuario') } } } } },
           401: responses[401],
           404: responses[404],
         },

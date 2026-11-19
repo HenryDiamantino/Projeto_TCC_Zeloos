@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_app/config/app_config.dart';
 import 'package:flutter_app/services/api_service.dart';
@@ -160,6 +161,73 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('updateProfilePhoto envia a foto como Data URL PNG', () async {
+      late http.Request enviada;
+      final png = Uint8List.fromList([0x89, 0x50, 0x4e, 0x47]);
+
+      final usuario = await withMockHttp(
+        () => ApiService.updateProfilePhoto(png),
+        (request) async {
+          enviada = request;
+          return jsonResponse({
+            'success': true,
+            'user': {'id': 1, 'foto_perfil': 'data:image/png;base64,iVBORw=='},
+          }, 200);
+        },
+      );
+
+      expect(enviada.method, 'PUT');
+      expect(enviada.url.path, '/api/auth/me/foto');
+      expect(enviada.headers['Authorization'], 'Bearer token-salvo');
+      expect(jsonDecode(enviada.body), {
+        'foto_perfil': 'data:image/png;base64,iVBORw==',
+      });
+      expect(usuario['foto_perfil'], 'data:image/png;base64,iVBORw==');
+    });
+
+    test('updateProfilePhoto mostra a mensagem de validação da API', () async {
+      await expectLater(
+        withMockHttp(
+          () => ApiService.updateProfilePhoto(Uint8List(4)),
+          (_) async => jsonResponse({
+            'success': false,
+            'message': 'Dados inválidos.',
+            'errors': [
+              {
+                'field': 'foto_perfil',
+                'message': 'Envie uma imagem PNG, JPEG ou WEBP de até 512 KB.',
+              },
+            ],
+          }, 400),
+        ),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'mensagem',
+            contains('Envie uma imagem PNG, JPEG ou WEBP de até 512 KB.'),
+          ),
+        ),
+      );
+    });
+
+    test('deleteProfilePhoto usa DELETE e devolve o usuário', () async {
+      late http.Request enviada;
+
+      final usuario = await withMockHttp(ApiService.deleteProfilePhoto, (
+        request,
+      ) async {
+        enviada = request;
+        return jsonResponse({
+          'success': true,
+          'user': {'id': 1, 'foto_perfil': null},
+        }, 200);
+      });
+
+      expect(enviada.method, 'DELETE');
+      expect(enviada.url.path, '/api/auth/me/foto');
+      expect(usuario['foto_perfil'], isNull);
     });
 
     test('createPulseira omite modelo vazio', () async {

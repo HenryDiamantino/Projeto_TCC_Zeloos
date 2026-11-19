@@ -6,6 +6,8 @@ import '../models/pulseira.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/theme_toggle_button.dart';
+import '../widgets/user_avatar.dart';
+import 'account_screen.dart';
 import 'alerts_screen.dart';
 import 'app_settings_screen.dart';
 import 'child_profiles_screen.dart';
@@ -33,6 +35,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Pulseira> _pulseiras = [];
   List<Alerta> _alerts = [];
   late String? _userName = widget.userName;
+  String? _userPhoto;
   bool _loading = true;
   String? _error;
 
@@ -55,8 +58,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ApiService.fetchMe(),
       ]);
       if (!mounted) return;
+      final user = results[3] as Map<String, dynamic>;
       setState(() {
-        _userName = (results[3] as Map<String, dynamic>)['nome'] as String?;
+        _userName = user['nome'] as String?;
+        _userPhoto = user['foto_perfil'] as String?;
         _children = results[0] as List<ChildProfile>;
         _pulseiras = results[1] as List<Pulseira>;
         _alerts = (results[2] as List<Alerta>)
@@ -124,6 +129,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: _logout,
             tooltip: 'Sair da conta',
             icon: const Icon(Icons.logout_rounded),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed: () => _open(const AccountScreen()),
+              tooltip: 'Minha conta',
+              icon: UserAvatar(name: _userName, photo: _userPhoto, radius: 16),
+            ),
           ),
         ],
       ),

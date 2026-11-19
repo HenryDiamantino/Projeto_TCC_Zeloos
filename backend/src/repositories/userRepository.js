@@ -15,7 +15,7 @@ async function createUser({ nome, email, senhaHash, telefone = null }) {
 }
 
 async function findById(id) {
-  const [rows] = await db.execute('SELECT id, nome, email, telefone, ativo, criado_em, atualizado_em FROM usuarios WHERE id = ? LIMIT 1', [id]);
+  const [rows] = await db.execute('SELECT id, nome, email, telefone, foto_perfil, ativo, criado_em, atualizado_em FROM usuarios WHERE id = ? LIMIT 1', [id]);
   return rows[0] || null;
 }
 
@@ -27,4 +27,9 @@ async function updateProfile(id, { nome, telefone = null }) {
   return findById(id);
 }
 
-module.exports = { findByEmail, createUser, findById, updateProfile };
+async function updateFotoPerfil(id, fotoPerfil) {
+  await db.execute('UPDATE usuarios SET foto_perfil = ?, atualizado_em = NOW() WHERE id = ?', [fotoPerfil, id]);
+  return findById(id);
+}
+
+module.exports = { findByEmail, createUser, findById, updateProfile, updateFotoPerfil };

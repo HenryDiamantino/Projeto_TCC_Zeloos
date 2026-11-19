@@ -25,6 +25,7 @@ A aplicação Flutter foi iniciada em [flutter_app](flutter_app) e inclui:
 - Acompanhamento das últimas localizações recebidas em mapa OpenStreetMap
 - Atualização automática do mapa a cada 15 segundos; a pulseira precisa enviar coordenadas à API para mostrar uma posição real
 - Listagem de alertas
+- Foto de perfil da conta: o avatar no canto superior direito mostra a inicial do nome até o responsável escolher uma foto (galeria ou câmera) em Configurações do app > Minha conta
 - Configuração do endpoint da API via variável de ambiente
 
 ## Requisitos de hardware

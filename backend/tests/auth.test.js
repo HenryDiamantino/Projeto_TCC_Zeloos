@@ -20,6 +20,7 @@ jest.mock('../src/repositories/userRepository', () => ({
   createUser: jest.fn(),
   findById: jest.fn(),
   updateProfile: jest.fn(),
+  updateFotoPerfil: jest.fn(),
 }));
 
 jest.mock('../src/config/db', () => ({
@@ -201,5 +202,50 @@ describe('Backend auth flow', () => {
     const response = await request(app).put('/api/auth/me').send({ nome: 'Novo Nome' });
 
     expect(response.status).toBe(401);
+  });
+
+  const fotoPng = `data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]).toString('base64')}`;
+
+  test('PUT /api/auth/me/foto should save the profile photo of logged user', async () => {
+    userRepository.updateFotoPerfil.mockResolvedValue({ id: 1, nome: 'Responsável Demo', foto_perfil: fotoPng });
+
+    const response = await request(app)
+      .put('/api/auth/me/foto')
+      .set('Authorization', 'Bearer fake-jwt-token')
+      .send({ foto_perfil: fotoPng });
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.foto_perfil).toBe(fotoPng);
+    expect(userRepository.updateFotoPerfil).toHaveBeenCalledWith(1, fotoPng);
+  });
+
+  test('PUT /api/auth/me/foto should reject content that is not an image', async () => {
+    const response = await request(app)
+      .put('/api/auth/me/foto')
+      .set('Authorization', 'Bearer fake-jwt-token')
+      .send({ foto_perfil: `data:image/png;base64,${Buffer.from('<script>alert(1)</script>').toString('base64')}` });
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors[0].field).toBe('foto_perfil');
+    expect(userRepository.updateFotoPerfil).not.toHaveBeenCalled();
+  });
+
+  test('PUT /api/auth/me/foto should require token', async () => {
+    const response = await request(app).put('/api/auth/me/foto').send({ foto_perfil: fotoPng });
+
+    expect(response.status).toBe(401);
+    expect(userRepository.updateFotoPerfil).not.toHaveBeenCalled();
+  });
+
+  test('DELETE /api/auth/me/foto should remove the profile photo', async () => {
+    userRepository.updateFotoPerfil.mockResolvedValue({ id: 1, nome: 'Responsável Demo', foto_perfil: null });
+
+    const response = await request(app)
+      .delete('/api/auth/me/foto')
+      .set('Authorization', 'Bearer fake-jwt-token');
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.foto_perfil).toBeNull();
+    expect(userRepository.updateFotoPerfil).toHaveBeenCalledWith(1, null);
   });
 });

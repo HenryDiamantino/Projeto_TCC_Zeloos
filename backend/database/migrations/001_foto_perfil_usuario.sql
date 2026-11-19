@@ -1,0 +1,3 @@
+USE pulseira_localizadora;
+
+ALTER TABLE usuarios ADD COLUMN foto_perfil MEDIUMTEXT NULL AFTER telefone;

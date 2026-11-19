@@ -1,4 +1,4 @@
-const { registerValidation, loginValidation, updateProfileValidation } = require('../../src/validators/authValidator');
+const { registerValidation, loginValidation, updateProfileValidation, fotoPerfilValidation } = require('../../src/validators/authValidator');
 const handleValidation = require('../../src/validators/validationResult');
 const { mockResponse } = require('./helpers');
 
@@ -75,6 +75,38 @@ describe('validators/authValidator', () => {
     test('exige nome', async () => {
       const { fields } = await validate(updateProfileValidation, {});
       expect(fields).toEqual(['nome']);
+    });
+  });
+
+  describe('fotoPerfilValidation', () => {
+    const dataUrl = (tipo, bytes) => `data:${tipo};base64,${Buffer.from(bytes).toString('base64')}`;
+    const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13];
+
+    test.each([
+      ['PNG', dataUrl('image/png', png)],
+      ['JPEG', dataUrl('image/jpeg', [0xff, 0xd8, 0xff, 0xe0, 0, 16])],
+      ['WEBP', dataUrl('image/webp', [...Buffer.from('RIFF'), 0, 0, 0, 0, ...Buffer.from('WEBPVP8 ')])],
+    ])('aceita imagem %s em Data URL', async (_, foto_perfil) => {
+      const { next } = await validate(fotoPerfilValidation, { foto_perfil });
+      expect(next).toHaveBeenCalled();
+    });
+
+    test.each([
+      ['ausente', undefined],
+      ['que não é Data URL', 'minha-foto.png'],
+      ['GIF (tipo não suportado)', dataUrl('image/gif', [...Buffer.from('GIF89a')])],
+      ['com conteúdo que não é imagem', dataUrl('image/png', [...Buffer.from('não sou uma imagem')])],
+      ['enviada como lista', [dataUrl('image/png', png)]],
+    ])('rejeita foto %s', async (_, foto_perfil) => {
+      const { res, fields } = await validate(fotoPerfilValidation, { foto_perfil });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(fields).toEqual(['foto_perfil']);
+    });
+
+    test('rejeita imagem maior que 512 KB', async () => {
+      const grande = Buffer.concat([Buffer.from(png), Buffer.alloc(512 * 1024)]);
+      const { fields } = await validate(fotoPerfilValidation, { foto_perfil: dataUrl('image/png', grande) });
+      expect(fields).toEqual(['foto_perfil']);
     });
   });
 

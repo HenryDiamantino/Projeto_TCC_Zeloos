@@ -1,8 +1,29 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/phone_input_formatter.dart';
+import '../utils/profile_photo.dart';
+import '../widgets/user_avatar.dart';
+
+enum _PhotoAction {
+  gallery(
+    Icons.photo_library_outlined,
+    'Escolher da galeria',
+    ImageSource.gallery,
+  ),
+  camera(Icons.photo_camera_outlined, 'Tirar foto', ImageSource.camera),
+  remove(Icons.delete_outline_rounded, 'Remover foto', null);
+
+  const _PhotoAction(this.icon, this.label, this.source);
+
+  final IconData icon;
+  final String label;
+  final ImageSource? source;
+}
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -15,9 +36,12 @@ class _AccountScreenState extends State<AccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _picker = ImagePicker();
   String _email = '';
+  String? _photo;
   bool _loading = true;
   bool _saving = false;
+  bool _savingPhoto = false;
   String? _loadError;
   String? _saveError;
 
@@ -48,6 +72,7 @@ class _AccountScreenState extends State<AccountScreen> {
           user['telefone'] as String? ?? '',
         );
         _email = user['email'] as String? ?? '';
+        _photo = user['foto_perfil'] as String?;
       });
     } catch (error) {
       if (mounted) {
@@ -88,17 +113,89 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  String get _initials {
-    final parts = _nameController.text.trim().split(RegExp(r'\s+'));
-    return parts
-        .where((p) => p.isNotEmpty)
-        .take(2)
-        .map((p) => p[0].toUpperCase())
-        .join();
+  static bool get _canUseCamera =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  Future<void> _changePhoto() async {
+    final actions = [
+      _PhotoAction.gallery,
+      if (_canUseCamera) _PhotoAction.camera,
+      if (_photo != null) _PhotoAction.remove,
+    ];
+    final action = actions.length == 1
+        ? actions.single
+        : await showModalBottomSheet<_PhotoAction>(
+            context: context,
+            showDragHandle: true,
+            builder: (context) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final action in actions)
+                    ListTile(
+                      leading: Icon(action.icon),
+                      title: Text(action.label),
+                      onTap: () => Navigator.of(context).pop(action),
+                    ),
+                ],
+              ),
+            ),
+          );
+    if (action == null || !mounted) return;
+
+    setState(() => _savingPhoto = true);
+    try {
+      final user = action == _PhotoAction.remove
+          ? await ApiService.deleteProfilePhoto()
+          : await _pickAndUploadPhoto(action.source!);
+      if (user == null || !mounted) return;
+      setState(() => _photo = user['foto_perfil'] as String?);
+      _showMessage(
+        action == _PhotoAction.remove
+            ? 'Foto removida.'
+            : 'Foto de perfil atualizada.',
+      );
+    } on PlatformException {
+      _showMessage(
+        'Não foi possível abrir a câmera ou a galeria. Verifique as permissões do app.',
+      );
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _savingPhoto = false);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _pickAndUploadPhoto(ImageSource source) async {
+    final file = await _picker.pickImage(
+      source: source,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      requestFullMetadata: false,
+    );
+    if (file == null) return null;
+    final Uint8List photo;
+    try {
+      photo = await prepareProfilePhoto(await file.readAsBytes());
+    } catch (_) {
+      throw Exception(
+        'Não foi possível ler essa imagem. Escolha uma foto JPG ou PNG.',
+      );
+    }
+    return ApiService.updateProfilePhoto(photo);
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final photoLabel = _photo == null ? 'Adicionar foto' : 'Alterar foto';
     return Scaffold(
       appBar: AppBar(title: const Text('Minha conta')),
       body: _loading
@@ -114,26 +211,51 @@ class _AccountScreenState extends State<AccountScreen> {
                     padding: const EdgeInsets.all(24),
                     children: [
                       Center(
-                        child: CircleAvatar(
-                          radius: 40,
-                          backgroundColor: context.palette.iconBg,
-                          child: _initials.isEmpty
-                              ? Icon(
-                                  Icons.person_rounded,
-                                  size: 40,
-                                  color: context.palette.title,
-                                )
-                              : Text(
-                                  _initials,
-                                  style: TextStyle(
-                                    color: context.palette.title,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            UserAvatar(
+                              name: _nameController.text,
+                              photo: _photo,
+                              radius: 48,
+                            ),
+                            Positioned(
+                              right: -6,
+                              bottom: -6,
+                              child: IconButton.filled(
+                                onPressed: _savingPhoto ? null : _changePhoto,
+                                tooltip: photoLabel,
+                                style: IconButton.styleFrom(
+                                  side: BorderSide(
+                                    color: Theme.of(context)
+                                        .scaffoldBackgroundColor,
+                                    width: 3,
                                   ),
                                 ),
+                                icon: _savingPhoto
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.photo_camera_rounded,
+                                        size: 20,
+                                      ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: _savingPhoto ? null : _changePhoto,
+                          child: Text(photoLabel),
+                        ),
+                      ),
                       Text(
                         _email,
                         textAlign: TextAlign.center,
